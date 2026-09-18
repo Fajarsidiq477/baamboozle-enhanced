@@ -198,6 +198,40 @@
       const [questionBank, setQuestionBank] = useState(RAW_QUESTIONS);
       const [editorModal, setEditorModal] = useState(false);
 
+      // --- ADMIN PANEL SYNC (BroadcastChannel: lets a separate admin.html tab
+      // on the SAME browser/device see the current question + answer, without
+      // exposing it on the projected screen) ---
+      const adminChannelRef = useRef(null);
+      const liveStateRef = useRef(null);
+
+      useEffect(() => {
+        liveStateRef.current = {
+          gameState, teams, activeTeamIdx, selectedTile,
+          stealPhase, stealingTeamId, currentEffectiveMode
+        };
+      });
+
+      useEffect(() => {
+        if (typeof BroadcastChannel === 'undefined') return;
+        const channel = new BroadcastChannel('baamboozle_admin_sync');
+        adminChannelRef.current = channel;
+        channel.onmessage = (e) => {
+          if (e.data === 'request_state' && liveStateRef.current) {
+            channel.postMessage({ type: 'state', ...liveStateRef.current });
+          }
+        };
+        return () => channel.close();
+      }, []);
+
+      useEffect(() => {
+        if (adminChannelRef.current) {
+          adminChannelRef.current.postMessage({
+            type: 'state', gameState, teams, activeTeamIdx, selectedTile,
+            stealPhase, stealingTeamId, currentEffectiveMode
+          });
+        }
+      }, [gameState, teams, activeTeamIdx, selectedTile, stealPhase, stealingTeamId, currentEffectiveMode]);
+
       // Initialize Lucide Icons
       useEffect(() => {
         if (window.lucide) {
@@ -453,6 +487,13 @@
             </div>
 
             <div className="flex items-center space-x-3">
+              <button
+                onClick={() => window.open('admin.html', '_blank')}
+                title="Buka di tab terpisah untuk melihat soal & kunci jawaban tanpa diproyeksikan ke layar utama"
+                className="bg-emerald-700/80 hover:bg-emerald-600 text-emerald-50 px-3 py-1.5 rounded-lg text-sm flex items-center space-x-1 border border-emerald-500 transition"
+              >
+                <span>🛡️ Panel Admin</span>
+              </button>
               {gameState === 'playing' && (
                 <>
                   <button 
