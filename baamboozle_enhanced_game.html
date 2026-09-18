@@ -203,57 +203,6 @@
       const [questionBank, setQuestionBank] = useState(RAW_QUESTIONS);
       const [editorModal, setEditorModal] = useState(false);
 
-      // --- ADMIN PANEL SYNC (BroadcastChannel: lets a separate admin.html tab
-      // on the SAME browser/device see the current question + answer, without
-      // exposing it on the projected screen) ---
-      const adminChannelRef = useRef(null);
-      const liveStateRef = useRef(null);
-
-      // Power-up tiles carry a JS function in data.effect, which cannot be
-      // sent through postMessage (structured clone throws DataCloneError and
-      // crashes the whole app). Strip it before broadcasting.
-      const sanitizeTileForBroadcast = (tile) => {
-        if (!tile) return null;
-        const { effect, ...restData } = tile.data || {};
-        return { ...tile, data: restData };
-      };
-
-      const safePostMessage = (channel, payload) => {
-        try {
-          channel.postMessage(payload);
-        } catch (err) {
-          console.error('Admin sync postMessage failed:', err);
-        }
-      };
-
-      useEffect(() => {
-        liveStateRef.current = {
-          gameState, teams, activeTeamIdx, selectedTile: sanitizeTileForBroadcast(selectedTile),
-          stealPhase, stealingTeamId, currentEffectiveMode
-        };
-      });
-
-      useEffect(() => {
-        if (typeof BroadcastChannel === 'undefined') return;
-        const channel = new BroadcastChannel('baamboozle_admin_sync');
-        adminChannelRef.current = channel;
-        channel.onmessage = (e) => {
-          if (e.data === 'request_state' && liveStateRef.current) {
-            safePostMessage(channel, { type: 'state', ...liveStateRef.current });
-          }
-        };
-        return () => channel.close();
-      }, []);
-
-      useEffect(() => {
-        if (adminChannelRef.current) {
-          safePostMessage(adminChannelRef.current, {
-            type: 'state', gameState, teams, activeTeamIdx, selectedTile: sanitizeTileForBroadcast(selectedTile),
-            stealPhase, stealingTeamId, currentEffectiveMode
-          });
-        }
-      }, [gameState, teams, activeTeamIdx, selectedTile, stealPhase, stealingTeamId, currentEffectiveMode]);
-
       // Initialize Lucide Icons
       useEffect(() => {
         if (window.lucide) {
@@ -511,13 +460,6 @@
             </div>
 
             <div className="flex items-center space-x-3">
-              <button
-                onClick={() => window.open('admin.html', '_blank')}
-                title="Buka di tab terpisah untuk melihat soal & kunci jawaban tanpa diproyeksikan ke layar utama"
-                className="bg-emerald-700/80 hover:bg-emerald-600 text-emerald-50 px-3 py-1.5 rounded-lg text-sm flex items-center space-x-1 border border-emerald-500 transition"
-              >
-                <span>🛡️ Panel Admin</span>
-              </button>
               {gameState === 'playing' && (
                 <>
                   <button 
