@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Baamboozle Enhanced - Web Game Interaktif</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- React & ReactDOM -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <!-- Babel for JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Canvas Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap');
+    body {
+      font-family: 'Fredoka', cursive, sans-serif;
+      background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%);
+      min-height: 100vh;
+      color: #f8fafc;
+    }
+    .card-flip {
+      perspective: 1000px;
+    }
+    .card-inner {
+      transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+      transform-style: preserve-3d;
+    }
+    .card-inner.flipped {
+      transform: rotateY(180deg);
+    }
+    .card-front, .card-back {
+      backface-visibility: hidden;
+    }
+    .card-back {
+      transform: rotateY(180deg);
+    }
+    .bounce-in {
+      animation: bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    }
+    @keyframes bounceIn {
+      0% { transform: scale(0.3); opacity: 0; }
+      50% { transform: scale(1.05); opacity: 1; }
+      70% { transform: scale(0.9); }
+      100% { transform: scale(1); }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    // --- PRESET QUESTION BANK (80 SOAL DARI INPUT USER) ---
+    const RAW_QUESTIONS = [
+      // Multiple Choice (30 Soal)
+      { id: 1, type: 'mcq', points: 15, question: "What is the main purpose of a computer network?", options: {A:"To make computers run faster", B:"To connect computers and allow them to share data and resources", C:"To prevent viruses from entering the computer", D:"To convert analogue signals to digital signals"}, answer: "B" },
+      { id: 2, type: 'mcq', points: 10, question: "Which type of network connects computers within a single building or school campus?", options: {A:"WAN", B:"MAN", C:"LAN", D:"PAN"}, answer: "C" },
+      { id: 3, type: 'mcq', points: 10, question: "What type of network is created when you connect a smartphone to a wireless speaker and a smartwatch using Bluetooth?", options: {A:"WAN", B:"PAN", C:"LAN", D:"Extranet"}, answer: "B" },
+      { id: 4, type: 'mcq', points: 10, question: "What technology does a Wireless LAN (WLAN) use to transmit data between devices?", options: {A:"Fiber optic cables", B:"Copper wires", C:"Radio waves", D:"Infrared light"}, answer: "C" },
+      { id: 5, type: 'mcq', points: 15, question: "Which network covers a large geographical area, such as connecting offices across different cities or countries?", options: {A:"LAN", B:"WLAN", C:"PAN", D:"WAN"}, answer: "D" },
+      { id: 6, type: 'mcq', points: 10, question: "What is the typical maximum communication range of Bluetooth?", options: {A:"Up to 10 meters", B:"Up to 100 meters", C:"Up to 1 kilometer", D:"Unlimited range"}, answer: "A" },
+      { id: 7, type: 'mcq', points: 15, question: "Linking a smartphone to a laptop to share the mobile phone's internet connection is called:", options: {A:"Encapsulation", B:"Tethering", C:"Packet switching", D:"Quarantine"}, answer: "B" },
+      { id: 8, type: 'mcq', points: 15, question: "What unique hardware identification number is permanently burned into a Network Interface Card (NIC)?", options: {A:"IP Address", B:"PIN Code", C:"MAC Address", D:"URL Address"}, answer: "C" },
+      { id: 9, type: 'mcq', points: 15, question: "Why is a network Hub referred to as a 'dumb' device?", options: {A:"It cannot be turned on or off", B:"It broadcasts incoming messages to all connected computers", C:"It requires an internet connection to function", D:"It deletes incoming data packets"}, answer: "B" },
+      { id: 10, type: 'mcq', points: 20, question: "How does a Switch differ from a Hub?", options: {A:"It connects a LAN directly to a WAN", B:"It reads the destination MAC address and sends data only to the intended recipient", C:"It converts digital data to analogue signals", D:"It only works using wireless signals"}, answer: "B" },
+      { id: 11, type: 'mcq', points: 15, question: "Which network device is used to connect two separate segments of the same Local Area Network (LAN)?", options: {A:"Router", B:"Modem", C:"Bridge", D:"Gateway"}, answer: "C" },
+      { id: 12, type: 'mcq', points: 15, question: "Which primary hardware device connects a local network to the Internet and directs traffic between different networks?", options: {A:"Hub", B:"Switch", C:"Router", D:"Repeater"}, answer: "C" },
+      { id: 13, type: 'mcq', points: 15, question: "Which part of a data packet contains the sender and recipient IP addresses?", options: {A:"Payload", B:"Body", C:"Footer", D:"Header"}, answer: "D" },
+      { id: 14, type: 'mcq', points: 15, question: "What is the main function of the Footer (Trailer) in a data packet?", options: {A:"To store the main message content", B:"To provide error checking and indicate the end of the packet", C:"To hold the MAC address of the router", D:"To encrypt the IP address"}, answer: "B" },
+      { id: 15, type: 'mcq', points: 20, question: "The process of breaking a file into small chunks, sending them across different network routes, and reassembling them at the destination is called:", options: {A:"Circuit switching", B:"Packet switching", C:"Data mining", D:"Asymmetric encryption"}, answer: "B" },
+      { id: 16, type: 'mcq', points: 10, question: "What set of protocols governs the transmission of data across the Internet?", options: {A:"HTTP / HTML", B:"TCP / IP", C:"FTP / POP3", D:"SSL / TLS"}, answer: "B" },
+      { id: 17, type: 'mcq', points: 15, question: "An Intranet is best described as:", options: {A:"A global public network accessible to everyone worldwide", B:"A private network within an organization accessible only by its members", C:"A temporary network created using Bluetooth", D:"A public Wi-Fi hotspot in an airport"}, answer: "B" },
+      { id: 18, type: 'mcq', points: 20, question: "What is an Extranet?", options: {A:"An internal network that has no security password", B:"A network used exclusively for audio conferencing", C:"An extension of an intranet that allows limited access to authorized external users", D:"A satellite network used in deep ocean research"}, answer: "C" },
+      { id: 19, type: 'mcq', points: 15, question: "Which of the following is an advantage of Cloud Storage for a business?", options: {A:"Files can be accessed from anywhere with an internet connection", B:"It eliminates the need for an internet connection", C:"Data is completely immune to cyberattacks", D:"Users have 100% control over the physical server hardware"}, answer: "A" },
+      { id: 20, type: 'mcq', points: 15, question: "A security device or software that inspects incoming/outgoing network traffic and blocks unauthorized access is a:", options: {A:"Switch", B:"Router", C:"Firewall", D:"Bridge"}, answer: "C" },
+      { id: 21, type: 'mcq', points: 20, question: "What type of encryption uses two different keys (a Public Key and a Private Key)?", options: {A:"Symmetric Encryption", B:"Asymmetric Encryption", C:"Caesar Cipher", D:"Hash Function"}, answer: "B" },
+      { id: 22, type: 'mcq', points: 20, question: "In Asymmetric Encryption, which key is used to decrypt (unlock) the received message?", options: {A:"The Public Key", B:"The Sender's Public Key", C:"The Private Key", D:"The Shared Master Key"}, answer: "C" },
+      { id: 23, type: 'mcq', points: 15, question: "Which password follows the textbook criteria for a STRONG password?", options: {A:"password123", B:"Fajar2026", C:"k9#mP!2$x", D:"qwertyuiop"}, answer: "C" },
+      { id: 24, type: 'mcq', points: 10, question: "Which of the following is a Biometric authentication method?", options: {A:"Smart card with a chip", B:"Facial recognition scan", C:"One-Time Password (OTP) physical token", D:"4-digit PIN code"}, answer: "B" },
+      { id: 25, type: 'mcq', points: 20, question: "How does a computer Worm differ from a computer Virus?", options: {A:"A worm cannot replicate itself", B:"A worm requires human action to spread", C:"A worm is an independent program that spreads automatically across networks without human action", D:"A worm only targets mobile phones"}, answer: "C" },
+      { id: 26, type: 'mcq', points: 15, question: "What type of malware disguises itself as useful, legitimate software to trick users into installing it?", options: {A:"Trojan horse", B:"Worm", C:"Adware", D:"Spyware"}, answer: "A" },
+      { id: 27, type: 'mcq', points: 15, question: "What is the primary function of Spyware?", options: {A:"To display unwanted pop-up advertisements", B:"To record keystrokes and secretly monitor user activities", C:"To corrupt the computer BIOS", D:"To physically damage the hard drive"}, answer: "B" },
+      { id: 28, type: 'mcq', points: 15, question: "Where does anti-malware software place suspicious, infected files so they cannot harm the rest of the system?", options: {A:"Recycle Bin", B:"System RAM", C:"Quarantine folder", D:"Cloud Backup"}, answer: "C" },
+      { id: 29, type: 'mcq', points: 20, question: "What equipment distinguishes Video-conferencing from standard Web-conferencing?", options: {A:"Web-conferencing uses large wall-mounted screens, room cameras, and dedicated private lines", B:"Video-conferencing uses specialized high-quality room equipment and dedicated lines, whereas web-conferencing uses web browsers and laptops", C:"Video-conferencing does not support video transmission", D:"Web-conferencing requires expensive satellite hardware"}, answer: "B" },
+      { id: 30, type: 'mcq', points: 15, question: "A one-way, non-interactive video or audio transmission broadcast over the internet is called a:", options: {A:"Webinar", B:"Webcast", C:"VoIP call", D:"Podcast discussion"}, answer: "B" },
+
+      // True / False (15 Soal)
+      { id: 31, type: 'tf', points: 10, question: "The Internet is classified as a global Wide Area Network (WAN).", answer: "TRUE" },
+      { id: 32, type: 'tf', points: 10, question: "Bluetooth has a higher data transfer speed and longer range than Wi-Fi.", answer: "FALSE" },
+      { id: 33, type: 'tf', points: 15, question: "A MAC address changes every time a device connects to a new Wi-Fi network.", answer: "FALSE" },
+      { id: 34, type: 'tf', points: 15, question: "A Hub reduces unnecessary network traffic compared to a Switch.", answer: "FALSE" },
+      { id: 35, type: 'tf', points: 10, question: "Routers inspect IP addresses to forward data packets to the correct destination network.", answer: "TRUE" },
+      { id: 36, type: 'tf', points: 15, question: "In packet switching, all data packets belonging to the same message must travel along the exact same physical route.", answer: "FALSE" },
+      { id: 37, type: 'tf', points: 10, question: "Intranets can be accessed by any member of the general public without logging in.", answer: "FALSE" },
+      { id: 38, type: 'tf', points: 10, question: "Storing data on Cloud Storage removes the need for an active internet connection to access files.", answer: "FALSE" },
+      { id: 39, type: 'tf', points: 15, question: "A Firewall can be implemented as either software or a dedicated hardware device.", answer: "TRUE" },
+      { id: 40, type: 'tf', points: 20, question: "In Asymmetric Encryption, the Public Key is kept secret while the Private Key is shared openly with everyone.", answer: "FALSE" },
+      { id: 41, type: 'tf', points: 15, question: "Biometric security systems rely on something the user knows, such as a password or PIN.", answer: "FALSE" },
+      { id: 42, type: 'tf', points: 15, question: "Computer viruses need to attach themselves to another executable file or program to spread.", answer: "TRUE" },
+      { id: 43, type: 'tf', points: 15, question: "Adware is software designed to record user passwords by capturing keypresses.", answer: "FALSE" },
+      { id: 44, type: 'tf', points: 10, question: "Anti-malware software should be updated regularly so it can detect newly created threats.", answer: "TRUE" },
+      { id: 45, type: 'tf', points: 10, question: "A Webinar is an interactive online teaching session where participants can ask questions to the presenter.", answer: "TRUE" },
+
+      // Fill / Short Answer (35 Soal)
+      { id: 46, type: 'short', points: 10, question: "LAN stands for ____________________.", answer: "Local Area Network" },
+      { id: 47, type: 'short', points: 10, question: "WAN stands for ____________________.", answer: "Wide Area Network" },
+      { id: 48, type: 'short', points: 10, question: "A network setup connecting personal mobile devices within 1-10 meters is known as PAN. PAN stands for ____________________.", answer: "Personal Area Network" },
+      { id: 49, type: 'short', points: 10, question: "MAC Address stands for ____________________.", answer: "Media Access Control" },
+      { id: 50, type: 'short', points: 15, question: "The permanent, unique number burned into every Network Interface Card is called a ____________ address.", answer: "MAC" },
+      { id: 51, type: 'short', points: 15, question: "A device that links two separate segments of the same Local Area Network is called a ____________.", answer: "Bridge" },
+      { id: 52, type: 'short', points: 15, question: "A data packet consists of three main parts: the Header, the ____________, and the Footer.", answer: "Body (or Payload)" },
+      { id: 53, type: 'short', points: 10, question: "An IP address stands for ____________________.", answer: "Internet Protocol" },
+      { id: 54, type: 'short', points: 10, question: "The global, public system of interconnected computer networks is called the ____________.", answer: "Internet" },
+      { id: 55, type: 'short', points: 15, question: "A private network accessible only by internal employees or members of an organization is an ____________.", answer: "Intranet" },
+      { id: 56, type: 'short', points: 15, question: "An intranet extended to grant controlled access to external partners (like suppliers) is an ____________.", answer: "Extranet" },
+      { id: 57, type: 'short', points: 15, question: "The process of scrambling data into an unreadable format using a key is called ____________.", answer: "Encryption" },
+      { id: 58, type: 'short', points: 15, question: "Authentication using physical biological traits (fingerprints, iris) is known as ____________.", answer: "Biometrics" },
+      { id: 59, type: 'short', points: 15, question: "Malicious software specifically designed to secretively spy on user activities and log keypresses is called ____________.", answer: "Spyware" },
+      { id: 60, type: 'short', points: 15, question: "Placing an infected file into an isolated folder to prevent harm is called ____________.", answer: "Quarantine" },
+      { id: 61, type: 'short', points: 20, question: "Scenario: A teacher wants to send a document to a network printer in the room next door without USB. What network type connects these devices?", answer: "LAN (Local Area Network)" },
+      { id: 62, type: 'short', points: 15, question: "Scenario: Farhan moves around the library on his laptop without losing internet. What wireless network type enables this?", answer: "WLAN (Wireless Local Area Network)" },
+      { id: 63, type: 'short', points: 15, question: "Scenario: An office has 8 computers. Sending a file slows everyone down because all computers receive the data. What 'dumb' device is used?", answer: "Hub" },
+      { id: 64, type: 'short', points: 15, question: "Scenario: The office replaces the hub with a smart device that sends data only to the destination MAC address. What device is it?", answer: "Switch" },
+      { id: 65, type: 'short', points: 20, question: "Scenario: A Jakarta office needs to connect to its London branch across the internet. What primary hardware device is required at each location?", answer: "Router" },
+      { id: 66, type: 'short', points: 15, question: "Scenario: A hospital internal portal shares medical records. Patients cannot log in from home. Is this Internet, Intranet, or Extranet?", answer: "Intranet" },
+      { id: 67, type: 'short', points: 20, question: "Scenario: The hospital portal now allows authorized patients to log in from home to book appointments. What network environment is this?", answer: "Extranet" },
+      { id: 68, type: 'short', points: 20, question: "Scenario: Internet goes down, and designers cannot access Google Drive files. What major disadvantage of cloud storage does this highlight?", answer: "Cloud storage requires an active internet connection to access files." },
+      { id: 69, type: 'short', points: 20, question: "Scenario: An attacker intercepts data packets on public Wi-Fi without altering data. What type of attack is this?", answer: "Passive attack" },
+      { id: 70, type: 'short', points: 15, question: "Scenario: A system inspects incoming IP addresses and blocks untrusted connection attempts. What security mechanism did this?", answer: "Firewall" },
+      { id: 71, type: 'short', points: 20, question: "Scenario: Alice wants to send an encrypted document to Bob. Which of Bob's keys should Alice use to encrypt?", answer: "Bob's Public Key" },
+      { id: 72, type: 'short', points: 20, question: "Scenario: Bob receives the encrypted document from Alice. Which key must Bob use to decrypt?", answer: "Bob's Private Key" },
+      { id: 73, type: 'short', points: 20, question: "Scenario: Student A uses password 'rover2015'. Why is it weak?", answer: "Uses pet name, birth year, no uppercase, no special symbols." },
+      { id: 74, type: 'short', points: 15, question: "Scenario: A bank customer inserts a microchip plastic card into an ATM. What type of card is this?", answer: "Smart card (Contact smart card)" },
+      { id: 75, type: 'short', points: 15, question: "Scenario: Bank sends a 6-digit OTP code to a smartphone/key fob device. What authentication device is used?", answer: "Physical token / Electronic token / OTP device" },
+      { id: 76, type: 'short', points: 20, question: "Scenario: User downloads a free game installer. Files are deleted in the background. What malware was disguised inside?", answer: "Trojan horse" },
+      { id: 77, type: 'short', points: 20, question: "Scenario: 50 computers on a school network get infected automatically without clicking any links. What self-replicating malware caused this?", answer: "Worm" },
+      { id: 78, type: 'short', points: 15, question: "Scenario: Unwanted shopping pop-ups constantly appear when opening a browser. What malware is this?", answer: "Adware" },
+      { id: 79, type: 'short', points: 20, question: "Scenario: Executives meet in dedicated rooms with large screens, room cameras, and private lines. Is this Video-conferencing or Web-conferencing?", answer: "Video-conferencing" },
+      { id: 80, type: 'short', points: 15, question: "Scenario: Lecturer hosts live teaching over the internet with 100 students viewing slides and chat box. What specific session is this?", answer: "Webinar" }
+    ];
+
+    // Power-Up / Trap definitions
+    const POWER_UPS = [
+      { id: 'bomb', name: 'BOM MELEDAK!', desc: 'Tim kamu kehilangan 25 poin!', effect: (score) => Math.max(0, score - 25), color: 'from-red-600 to-rose-700', icon: '💣' },
+      { id: 'double', name: 'POIN GANDA!', desc: 'Dapatkan Bonus +30 Poin!', effect: (score) => score + 30, color: 'from-amber-500 to-yellow-600', icon: '⭐' },
+      { id: 'swap', name: 'TUKAR SKOR!', desc: 'Tukar skor dengan tim di posisi teratas!', effect: null, isSwap: true, color: 'from-purple-600 to-indigo-700', icon: '🔄' },
+      { id: 'thief', name: 'CURI POIN!', desc: 'Curi 20 poin dari tim pemimpin!', effect: null, isSteal20: true, color: 'from-emerald-600 to-teal-700', icon: '🥷' },
+      { id: 'jackpot', name: 'JACKPOT!', desc: 'Dapatkan Bonus +50 Poin!', effect: (score) => score + 50, color: 'from-pink-500 to-rose-600', icon: '🎰' }
+    ];
+
+    const TEAM_COLORS = [
+      { name: 'Merah', bg: 'bg-red-500', border: 'border-red-400', text: 'text-red-400', hex: '#ef4444' },
+      { name: 'Biru', bg: 'bg-blue-500', border: 'border-blue-400', text: 'text-blue-400', hex: '#3b82f6' },
+      { name: 'Hijau', bg: 'bg-emerald-500', border: 'border-emerald-400', text: 'text-emerald-400', hex: '#10b981' },
+      { name: 'Kuning', bg: 'bg-amber-500', border: 'border-amber-400', text: 'text-amber-400', hex: '#f59e0b' },
+      { name: 'Ungu', bg: 'bg-purple-500', border: 'border-purple-400', text: 'text-purple-400', hex: '#a855f7' },
+      { name: 'Pink', bg: 'bg-pink-500', border: 'border-pink-400', text: 'text-pink-400', hex: '#ec4899' }
+    ];
+
+    function App() {
+      // Configuration & Setup States
+      const [gameState, setGameState] = useState('setup'); // 'setup', 'playing', 'gameover'
+      const [gridSize, setGridSize] = useState(16); // 9, 12, 16, 20, 24, 30, 40
+      const [stealMode, setStealMode] = useState('auto'); // 'auto', 'random', 'manual', 'open'
+      const [currentEffectiveMode, setCurrentEffectiveMode] = useState('random');
+      const [powerUpRate, setPowerUpRate] = useState(20); // percentage
+
+      // Team States
+      const [teams, setTeams] = useState([
+        { id: 1, name: 'Tim 1', score: 0, color: TEAM_COLORS[0] },
+        { id: 2, name: 'Tim 2', score: 0, color: TEAM_COLORS[1] },
+        { id: 3, name: 'Tim 3', score: 0, color: TEAM_COLORS[2] }
+      ]);
+      const [activeTeamIdx, setActiveTeamIdx] = useState(0);
+
+      // Game Tiles State
+      const [tiles, setTiles] = useState([]);
+      const [selectedTile, setSelectedTile] = useState(null);
+      const [revealedAnswer, setRevealedAnswer] = useState(false);
+
+      // Enhanced Steal Mechanics State
+      const [stealPhase, setStealPhase] = useState('none'); // 'none', 'selecting_team', 'animating_random', 'stealing_answer'
+      const [stealingTeamId, setStealingTeamId] = useState(null);
+      const [animatingTeamId, setAnimatingTeamId] = useState(null);
+      const [isSpinFinished, setIsSpinFinished] = useState(false);
+
+      // Host Manual Score Adjustment Modal
+      const [manualScoreModal, setManualScoreModal] = useState(false);
+
+      // Custom Question Editor Modal
+      const [questionBank, setQuestionBank] = useState(RAW_QUESTIONS);
+      const [editorModal, setEditorModal] = useState(false);
+
+      // Initialize Lucide Icons
+      useEffect(() => {
+        if (window.lucide) {
+          window.lucide.createIcons();
+        }
+      });
+
+      // --- GAME SETUP & INITIALIZATION ---
+      const handleStartGame = () => {
+        // Shuffle and pick questions/powerups according to grid size
+        const shuffledQ = [...questionBank].sort(() => 0.5 - Math.random());
+        const totalPowerUps = Math.floor((gridSize * powerUpRate) / 100);
+        const totalQuestions = gridSize - totalPowerUps;
+
+        const selectedQ = shuffledQ.slice(0, totalQuestions);
+        const generatedTiles = [];
+
+        // Mix Questions and Powerups
+        for (let i = 0; i < totalQuestions; i++) {
+          generatedTiles.push({
+            id: i + 1,
+            tileNumber: i + 1,
+            isPowerUp: false,
+            data: selectedQ[i],
+            isOpened: false
+          });
+        }
+
+        for (let i = 0; i < totalPowerUps; i++) {
+          const randomPU = POWER_UPS[Math.floor(Math.random() * POWER_UPS.length)];
+          generatedTiles.push({
+            id: totalQuestions + i + 1,
+            tileNumber: totalQuestions + i + 1,
+            isPowerUp: true,
+            data: randomPU,
+            isOpened: false
+          });
+        }
+
+        // Shuffle tile order
+        const finalGrid = generatedTiles.sort(() => 0.5 - Math.random()).map((t, idx) => ({
+          ...t,
+          tileNumber: idx + 1
+        }));
+
+        setTiles(finalGrid);
+        setActiveTeamIdx(0);
+        setGameState('playing');
+      };
+
+      // Turn Management
+      const nextTurn = () => {
+        setActiveTeamIdx((prev) => (prev + 1) % teams.length);
+        setSelectedTile(null);
+        setRevealedAnswer(false);
+        setStealPhase('none');
+        setStealingTeamId(null);
+        setAnimatingTeamId(null);
+        setIsSpinFinished(false);
+        setCurrentEffectiveMode('random');
+
+        // Check game over
+        const remaining = tiles.filter(t => !t.isOpened).length;
+        if (remaining <= 1) { // 1 remaining means current tile is the last one
+          setTimeout(() => {
+            setGameState('gameover');
+            confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+          }, 1000);
+        }
+      };
+
+      // Tile Click Handler
+      const handleTileClick = (tile) => {
+        if (tile.isOpened) return;
+
+        // Mark tile as opened
+        setTiles(prev => prev.map(t => t.id === tile.id ? { ...t, isOpened: true } : t));
+        setSelectedTile(tile);
+
+        // If it's a Power Up / Trap, execute immediately
+        if (tile.isPowerUp) {
+          executePowerUp(tile.data);
+        }
+      };
+
+      // Execute Power-Up Effect
+      const executePowerUp = (pu) => {
+        setTeams(prev => {
+          const currentTeam = prev[activeTeamIdx];
+          const newTeams = [...prev];
+
+          if (pu.isSwap) {
+            // Find top team (other than current)
+            const otherTeams = newTeams.filter(t => t.id !== currentTeam.id);
+            const topTeam = otherTeams.reduce((max, t) => t.score > max.score ? t : max, otherTeams[0]);
+            if (topTeam) {
+              const tempScore = currentTeam.score;
+              currentTeam.score = topTeam.score;
+              topTeam.score = tempScore;
+            }
+          } else if (pu.isSteal20) {
+            const otherTeams = newTeams.filter(t => t.id !== currentTeam.id);
+            const topTeam = otherTeams.reduce((max, t) => t.score > max.score ? t : max, otherTeams[0]);
+            if (topTeam && topTeam.score >= 20) {
+              topTeam.score -= 20;
+              currentTeam.score += 20;
+            }
+          } else if (pu.effect) {
+            currentTeam.score = pu.effect(currentTeam.score);
+          }
+
+          return newTeams;
+        });
+      };
+
+      // Handle Active Team Correct Answer
+      const handleCorrectAnswer = () => {
+        const points = selectedTile.data.points || 10;
+        setTeams(prev => prev.map((t, idx) => idx === activeTeamIdx ? { ...t, score: t.score + points } : t));
+        confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 } });
+        nextTurn();
+      };
+
+      const startRandomPickerAnimation = (eligibleTeams) => {
+        setIsSpinFinished(false);
+        let currentIndex = 0;
+        let speed = 70; // initial interval in ms
+        let counter = 0;
+        const totalSteps = 22 + Math.floor(Math.random() * 8);
+
+        const finalChosenTeam = eligibleTeams[Math.floor(Math.random() * eligibleTeams.length)];
+
+        const spin = () => {
+          counter++;
+          currentIndex = (currentIndex + 1) % eligibleTeams.length;
+          setAnimatingTeamId(eligibleTeams[currentIndex].id);
+
+          if (counter < totalSteps) {
+            // Gradually slow down near the finish
+            if (counter > totalSteps - 6) {
+              speed += 70;
+            } else if (counter > totalSteps - 12) {
+              speed += 35;
+            }
+            setTimeout(spin, speed);
+          } else {
+            // Land on chosen team
+            setAnimatingTeamId(finalChosenTeam.id);
+            setStealingTeamId(finalChosenTeam.id);
+            setIsSpinFinished(true);
+
+            // Micro confetti burst on selection
+            confetti({ particleCount: 30, spread: 50, origin: { y: 0.5 } });
+
+            // Transition to answer steal step after brief reveal
+            setTimeout(() => {
+              setStealPhase('stealing_answer');
+            }, 1300);
+          }
+        };
+
+        spin();
+      };
+
+      // Handle Active Team Wrong Answer -> Deduct Points & Trigger Steal Mechanics!
+      const handleWrongAnswer = () => {
+        const points = selectedTile.data.points || 10;
+
+        setTeams(prev => prev.map((t, idx) => 
+          idx === activeTeamIdx ? { ...t, score: Math.max(0, t.score - points) } : t
+        ));
+
+        if (teams.length <= 1) {
+          // No other teams to steal
+          nextTurn();
+          return;
+        }
+
+        const eligibleTeams = teams.filter((_, idx) => idx !== activeTeamIdx);
+
+        // Determine effective steal mode (if 'auto', system dynamically picks one)
+        let effectiveMode = stealMode;
+        if (stealMode === 'auto') {
+          const modes = ['random', 'manual', 'open'];
+          effectiveMode = modes[Math.floor(Math.random() * modes.length)];
+        }
+        setCurrentEffectiveMode(effectiveMode);
+
+        if (effectiveMode === 'random') {
+          setStealPhase('animating_random');
+          startRandomPickerAnimation(eligibleTeams);
+        } else if (effectiveMode === 'manual' || effectiveMode === 'open') {
+          setStealPhase('selecting_team');
+        }
+      };
+
+      // Handle Steal Answer Outcome
+      const handleStealOutcome = (isStealCorrect) => {
+        const points = selectedTile.data.points || 10;
+        const targetTeamIdx = teams.findIndex(t => t.id === stealingTeamId);
+
+        if (targetTeamIdx !== -1) {
+          setTeams(prev => prev.map((t, idx) => {
+            if (idx === targetTeamIdx) {
+              return {
+                ...t,
+                score: isStealCorrect ? t.score + points : Math.max(0, t.score - Math.floor(points / 2))
+              };
+            }
+            return t;
+          }));
+
+          if (isStealCorrect) {
+            confetti({ particleCount: 60, spread: 70, origin: { y: 0.7 } });
+          }
+        }
+        nextTurn();
+      };
+
+      // Helper for Team Management
+      const addTeam = () => {
+        if (teams.length >= 6) return;
+        const nextId = teams.length + 1;
+        const color = TEAM_COLORS[teams.length % TEAM_COLORS.length];
+        setTeams([...teams, { id: Date.now(), name: `Tim ${nextId}`, score: 0, color }]);
+      };
+
+      const removeTeam = (id) => {
+        if (teams.length <= 2) return;
+        setTeams(teams.filter(t => t.id !== id));
+      };
+
+      const updateTeamName = (id, newName) => {
+        setTeams(teams.map(t => t.id === id ? { ...t, name: newName } : t));
+      };
+
+      const adjustScore = (teamId, amount) => {
+        setTeams(teams.map(t => t.id === teamId ? { ...t, score: Math.max(0, t.score + amount) } : t));
+      };
+
+      return (
+        <div className="min-h-screen flex flex-col">
+          {/* HEADER BAR */}
+          <header className="bg-indigo-950/80 backdrop-blur border-b border-indigo-800/50 px-6 py-4 flex justify-between items-center sticky top-0 z-40">
+            <div className="flex items-center space-x-3">
+              <div className="bg-amber-400 text-indigo-950 p-2 rounded-xl font-black text-2xl shadow-lg">⚡</div>
+              <div>
+                <h1 className="text-2xl font-bold tracking-wide bg-gradient-to-r from-amber-300 via-yellow-200 to-amber-400 bg-clip-text text-transparent">
+                  Baamboozle <span className="text-indigo-400 font-normal text-lg">Enhanced</span>
+                </h1>
+                <p className="text-xs text-indigo-300">Interactive Classroom Game App</p>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-3">
+              {gameState === 'playing' && (
+                <>
+                  <button 
+                    onClick={() => setManualScoreModal(true)}
+                    className="bg-indigo-800/80 hover:bg-indigo-700 text-indigo-200 px-3 py-1.5 rounded-lg text-sm flex items-center space-x-1 border border-indigo-600 transition"
+                  >
+                    <span>⚙️ Fitur Host / Edit Skor</span>
+                  </button>
+                  <button 
+                    onClick={() => setGameState('setup')}
+                    className="bg-rose-600/80 hover:bg-rose-600 text-white px-3 py-1.5 rounded-lg text-sm font-semibold transition"
+                  >
+                    Ulang Game
+                  </button>
+                </>
+              )}
+              {gameState === 'setup' && (
+                <button 
+                  onClick={() => setEditorModal(true)}
+                  className="bg-indigo-800 hover:bg-indigo-700 text-indigo-100 px-4 py-2 rounded-xl text-sm font-semibold flex items-center space-x-2 border border-indigo-600 transition"
+                >
+                  <span>📚 Bank Soal ({questionBank.length})</span>
+                </button>
+              )}
+            </div>
+          </header>
+
+          {/* MAIN CONTAINER */}
+          <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 flex flex-col justify-center">
+
+            {/* --- SCREEN 1: SETUP GAME --- */}
+            {gameState === 'setup' && (
+              <div className="bg-indigo-900/60 backdrop-blur-xl border border-indigo-700/50 rounded-3xl p-6 md:p-8 max-w-3xl mx-auto w-full shadow-2xl bounce-in">
+                <h2 className="text-3xl font-extrabold text-center mb-6 text-amber-300">Pengaturan Permainan</h2>
+
+                <div className="space-y-6">
+                  {/* Grid Size & Special Tiles */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-indigo-950/50 p-4 rounded-2xl border border-indigo-800">
+                      <label className="block text-sm font-medium text-indigo-200 mb-2">Jumlah Kartu Papan:</label>
+                      <select 
+                        value={gridSize} 
+                        onChange={(e) => setGridSize(Number(e.target.value))}
+                        className="w-full bg-indigo-900 border border-indigo-700 text-white rounded-xl p-2.5 font-bold focus:ring-2 focus:ring-amber-400"
+                      >
+                        <option value={9}>9 Kartu (3x3 - Singkat)</option>
+                        <option value={12}>12 Kartu (4x3)</option>
+                        <option value={16}>16 Kartu (4x4 - Standar)</option>
+                        <option value={20}>20 Kartu (5x4)</option>
+                        <option value={24}>24 Kartu (6x4)</option>
+                        <option value={30}>30 Kartu (6x5)</option>
+                        <option value={40}>40 Kartu (8x5 - Panjang)</option>
+                      </select>
+                    </div>
+
+                    <div className="bg-indigo-950/50 p-4 rounded-2xl border border-indigo-800">
+                      <label className="block text-sm font-medium text-indigo-200 mb-2">Persentase Power-Up / Trap:</label>
+                      <select 
+                        value={powerUpRate} 
+                        onChange={(e) => setPowerUpRate(Number(e.target.value))}
+                        className="w-full bg-indigo-900 border border-indigo-700 text-white rounded-xl p-2.5 font-bold focus:ring-2 focus:ring-amber-400"
+                      >
+                        <option value={10}>10% (Sedikit)</option>
+                        <option value={20}>20% (Sedang)</option>
+                        <option value={30}>30% (Ramai)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Enhanced Steal Mode Selection */}
+                  <div className="bg-indigo-950/50 p-4 rounded-2xl border border-indigo-800">
+                    <label className="block text-sm font-medium text-indigo-200 mb-2">
+                      🎯 Mode Lempar Pertanyaan (Jika Jawaban Salah):
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                      {[
+                        { id: 'auto', title: 'Otomatis System ⚡', desc: 'Acak/kondisional oleh sistem' },
+                        { id: 'random', title: 'Random Pick', desc: 'Sistem acak memilih tim' },
+                        { id: 'manual', title: 'Manual Pick', desc: 'Tim aktif memilih tim' },
+                        { id: 'open', title: 'Open Steal', desc: 'Bebas direbut tim manapun' }
+                      ].map(mode => (
+                        <button
+                          key={mode.id}
+                          onClick={() => setStealMode(mode.id)}
+                          className={`p-3 rounded-xl border text-left transition ${
+                            stealMode === mode.id 
+                              ? 'bg-amber-500 text-indigo-950 border-amber-300 font-bold shadow-lg scale-105' 
+                              : 'bg-indigo-900/80 text-indigo-200 border-indigo-700 hover:bg-indigo-800'
+                          }`}
+                        >
+                          <div className="font-extrabold text-base">{mode.title}</div>
+                          <div className="text-xs opacity-80 mt-1">{mode.desc}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Team Setup */}
+                  <div className="bg-indigo-950/50 p-4 rounded-2xl border border-indigo-800">
+                    <div className="flex justify-between items-center mb-3">
+                      <label className="text-sm font-medium text-indigo-200">Pengaturan Tim (2 - 6 Tim):</label>
+                      {teams.length < 6 && (
+                        <button 
+                          onClick={addTeam}
+                          className="bg-indigo-700 hover:bg-indigo-600 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition"
+                        >
+                          + Tambah Tim
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {teams.map((team, idx) => (
+                        <div key={team.id} className="flex items-center space-x-2 bg-indigo-900/60 p-2 rounded-xl border border-indigo-700">
+                          <div className={`w-4 h-8 rounded-md ${team.color.bg}`}></div>
+                          <input 
+                            type="text" 
+                            value={team.name}
+                            onChange={(e) => updateTeamName(team.id, e.target.value)}
+                            className="bg-indigo-950 border border-indigo-700 text-white text-sm rounded-lg px-2 py-1 flex-1 font-bold"
+                          />
+                          {teams.length > 2 && (
+                            <button 
+                              onClick={() => removeTeam(team.id)}
+                              className="text-rose-400 hover:text-rose-200 text-xs px-2 py-1"
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Start Button */}
+                  <button 
+                    onClick={handleStartGame}
+                    className="w-full bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-indigo-950 font-black text-xl py-4 rounded-2xl shadow-xl hover:brightness-110 active:scale-95 transition transform"
+                  >
+                    🚀 MULAI PERMAINAN
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* --- SCREEN 2: GAMEPLAY BOARD --- */}
+            {gameState === 'playing' && (
+              <div className="flex flex-col space-y-6">
+
+                {/* Scoreboard Bar */}
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                  {teams.map((team, idx) => {
+                    const isActive = idx === activeTeamIdx;
+                    return (
+                      <div 
+                        key={team.id} 
+                        className={`p-3 rounded-2xl border transition-all duration-300 relative overflow-hidden ${
+                          isActive 
+                            ? 'bg-gradient-to-b from-indigo-800 to-indigo-950 border-amber-400 ring-4 ring-amber-400/30 scale-105 shadow-2xl' 
+                            : 'bg-indigo-950/60 border-indigo-800 opacity-80'
+                        }`}
+                      >
+                        {isActive && (
+                          <div className="absolute top-0 right-0 bg-amber-400 text-indigo-950 text-[10px] font-black px-2 py-0.5 rounded-bl-lg">
+                            GILIRAN
+                          </div>
+                        )}
+                        <div className="flex items-center space-x-2">
+                          <div className={`w-3 h-3 rounded-full ${team.color.bg}`}></div>
+                          <span className="font-bold text-sm truncate text-white">{team.name}</span>
+                        </div>
+                        <div className="text-2xl font-black mt-1 text-amber-300">{team.score} <span className="text-xs font-normal text-indigo-300">pts</span></div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Active Turn Banner */}
+                <div className="bg-indigo-900/80 border border-indigo-700/60 rounded-2xl p-3 flex justify-between items-center">
+                  <div className="flex items-center space-x-3">
+                    <span className="text-sm text-indigo-300">Giliran Saat Ini:</span>
+                    <span className={`text-lg font-black ${teams[activeTeamIdx]?.color.text}`}>
+                      {teams[activeTeamIdx]?.name}
+                    </span>
+                  </div>
+                  <div className="text-xs text-indigo-300 bg-indigo-950 px-3 py-1 rounded-full border border-indigo-800">
+                    Sisa Kartu: {tiles.filter(t => !t.isOpened).length} / {tiles.length}
+                  </div>
+                </div>
+
+                {/* Grid Board */}
+                <div className={`grid gap-3 md:gap-4 ${
+                  gridSize <= 12 ? 'grid-cols-3 md:grid-cols-4' :
+                  gridSize <= 20 ? 'grid-cols-4 md:grid-cols-5' : 'grid-cols-4 md:grid-cols-6 lg:grid-cols-8'
+                }`}>
+                  {tiles.map((tile) => (
+                    <div key={tile.id} className="card-flip h-24 md:h-28">
+                      <div className={`card-inner w-full h-full relative rounded-2xl cursor-pointer ${tile.isOpened ? 'flipped' : ''}`}>
+                        
+                        {/* FRONT OF CARD (CLOSED) */}
+                        <div 
+                          onClick={() => handleTileClick(tile)}
+                          className="card-front absolute inset-0 bg-gradient-to-br from-indigo-600 via-indigo-700 to-indigo-800 rounded-2xl border-2 border-indigo-500/50 flex items-center justify-center shadow-lg hover:border-amber-400 hover:scale-105 transition transform"
+                        >
+                          <span className="text-2xl md:text-3xl font-black text-amber-300 drop-shadow">
+                            {tile.tileNumber}
+                          </span>
+                        </div>
+
+                        {/* BACK OF CARD (OPENED) */}
+                        <div className="card-back absolute inset-0 bg-indigo-950/90 rounded-2xl border-2 border-indigo-800 flex items-center justify-center p-2 text-center shadow-inner">
+                          {tile.isPowerUp ? (
+                            <span className="text-2xl">{tile.data.icon}</span>
+                          ) : (
+                            <span className="text-xs font-bold text-indigo-400">Terbuka</span>
+                          )}
+                        </div>
+
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+              </div>
+            )}
+
+            {/* --- SCREEN 3: GAME OVER PODIUM --- */}
+            {gameState === 'gameover' && (
+              <div className="bg-indigo-900/80 backdrop-blur-xl border border-indigo-700 rounded-3xl p-8 max-w-2xl mx-auto w-full text-center bounce-in shadow-2xl">
+                <h2 className="text-4xl font-black text-amber-300 mb-2">🎉 PERMAINAN SELESAI! 🎉</h2>
+                <p className="text-indigo-200 mb-8">Selamat kepada para pemenang!</p>
+
+                {/* Leaderboard Podium */}
+                <div className="space-y-3 mb-8">
+                  {[...teams].sort((a,b) => b.score - a.score).map((team, rank) => (
+                    <div 
+                      key={team.id}
+                      className={`p-4 rounded-2xl flex justify-between items-center border ${
+                        rank === 0 ? 'bg-amber-500/20 border-amber-400 scale-105 shadow-xl' :
+                        rank === 1 ? 'bg-slate-400/20 border-slate-300' :
+                        rank === 2 ? 'bg-amber-700/20 border-amber-600' : 'bg-indigo-950/50 border-indigo-800'
+                      }`}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <span className="text-2xl font-black w-8">
+                          {rank === 0 ? '🥇' : rank === 1 ? '🥈' : rank === 2 ? '🥉' : `#${rank+1}`}
+                        </span>
+                        <span className="font-extrabold text-lg text-white">{team.name}</span>
+                      </div>
+                      <span className="text-2xl font-black text-amber-300">{team.score} pts</span>
+                    </div>
+                  ))}
+                </div>
+
+                <button 
+                  onClick={() => setGameState('setup')}
+                  className="bg-amber-400 hover:bg-amber-300 text-indigo-950 font-black px-8 py-3.5 rounded-2xl shadow-xl transition"
+                >
+                  Main Lagi
+                </button>
+              </div>
+            )}
+
+          </main>
+
+          {/* --- MODAL: QUESTION / POWER-UP INTERACTION --- */}
+          {selectedTile && (
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+              <div className="bg-indigo-900 border-2 border-indigo-600 rounded-3xl max-w-2xl w-full p-6 md:p-8 shadow-2xl bounce-in">
+                
+                {/* POWER UP TILE MODAL */}
+                {selectedTile.isPowerUp ? (
+                  <div className="text-center space-y-4 py-4">
+                    <div className="text-6xl animate-bounce">{selectedTile.data.icon}</div>
+                    <h3 className="text-3xl font-black text-amber-300">{selectedTile.data.name}</h3>
+                    <p className="text-lg text-indigo-100 max-w-md mx-auto">{selectedTile.data.desc}</p>
+                    <div className="pt-4">
+                      <button 
+                        onClick={nextTurn}
+                        className="bg-amber-400 hover:bg-amber-300 text-indigo-950 font-black px-8 py-3 rounded-xl shadow-lg transition"
+                      >
+                        Lanjut Permainan
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  /* QUESTION TILE MODAL */
+                  <div className="space-y-6">
+                    {/* Top Bar inside Modal */}
+                    <div className="flex justify-between items-center border-b border-indigo-800 pb-3">
+                      <span className="bg-amber-400/20 text-amber-300 border border-amber-400/40 text-xs font-black px-3 py-1 rounded-full">
+                        {selectedTile.data.type === 'mcq' ? 'Pilihan Ganda' : selectedTile.data.type === 'tf' ? 'True / False' : 'Isian Singkat'}
+                      </span>
+                      <span className="text-lg font-black text-amber-300">
+                        +{selectedTile.data.points || 10} Pts
+                      </span>
+                    </div>
+
+                    {/* Question Text */}
+                    <div className="bg-indigo-950/70 p-5 rounded-2xl border border-indigo-800">
+                      <h3 className="text-xl md:text-2xl font-bold text-white leading-relaxed">
+                        {selectedTile.data.question}
+                      </h3>
+
+                      {/* Options if MCQ */}
+                      {selectedTile.data.type === 'mcq' && selectedTile.data.options && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 mt-4">
+                          {Object.entries(selectedTile.data.options).map(([key, value]) => (
+                            <div key={key} className="bg-indigo-900/80 border border-indigo-700/60 p-2.5 rounded-xl text-sm font-semibold text-indigo-100 flex items-center space-x-2">
+                              <span className="bg-indigo-800 text-amber-300 px-2 py-0.5 rounded font-black">{key}</span>
+                              <span>{value}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Reveal Answer Section */}
+                    {revealedAnswer ? (
+                      <div className="bg-emerald-950/60 border border-emerald-500/50 p-4 rounded-2xl text-center bounce-in">
+                        <div className="text-xs text-emerald-400 font-bold uppercase tracking-wider mb-1">Kunci Jawaban:</div>
+                        <div className="text-xl font-extrabold text-emerald-200">{selectedTile.data.answer}</div>
+                      </div>
+                    ) : (
+                      <button 
+                        onClick={() => setRevealedAnswer(true)}
+                        className="w-full bg-indigo-800 hover:bg-indigo-700 text-indigo-200 border border-indigo-600 font-bold py-2.5 rounded-xl transition text-sm"
+                      >
+                        👁️ Tampilkan Kunci Jawaban
+                      </button>
+                    )}
+
+                    {/* ACTIVE TURN ACTION / STEAL MECHANICS LOGIC */}
+                    {stealPhase === 'none' && (
+                      <div className="grid grid-cols-2 gap-4 pt-2">
+                        <button 
+                          onClick={handleCorrectAnswer}
+                          className="bg-emerald-500 hover:bg-emerald-400 text-indigo-950 font-black py-3.5 rounded-2xl shadow-lg text-lg transition flex items-center justify-center space-x-2"
+                        >
+                          <span>✅ Jawaban Benar (+{selectedTile.data.points || 10} Pts)</span>
+                        </button>
+                        <button 
+                          onClick={handleWrongAnswer}
+                          className="bg-rose-600 hover:bg-rose-500 text-white font-black py-3.5 rounded-2xl shadow-lg text-lg transition flex items-center justify-center space-x-2"
+                        >
+                          <span>❌ Jawaban Salah (-{selectedTile.data.points || 10} Pts)</span>
+                        </button>
+                      </div>
+                    )}
+
+                    {/* ENHANCED STEAL PHASE: ANIMATED RANDOM PICKER */}
+                    {stealPhase === 'animating_random' && (
+                      <div className="bg-gradient-to-r from-purple-900/90 via-indigo-900/90 to-purple-900/90 border-2 border-amber-400 p-6 rounded-3xl text-center space-y-4 shadow-2xl bounce-in">
+                        {stealMode === 'auto' && (
+                          <div className="inline-block bg-amber-400 text-indigo-950 text-xs font-black px-3 py-1 rounded-full shadow border border-amber-300 mb-1 animate-pulse">
+                            ⚡ OTOMATIS SISTEM: MODE RANDOM PICK!
+                          </div>
+                        )}
+                        <div className="flex justify-center items-center space-x-2">
+                          <span className={`text-3xl ${isSpinFinished ? 'animate-bounce' : 'animate-spin'}`}>
+                            {isSpinFinished ? '🎯' : '🎰'}
+                          </span>
+                          <h4 className="text-xl font-black text-amber-300 tracking-wider uppercase">
+                            {isSpinFinished ? 'TIM TERPILIH UNTUK MEREBUT:' : 'MENGACAK TIM PENERIMA LEMPARAN...'}
+                          </h4>
+                        </div>
+
+                        {/* Roulette Display Box */}
+                        <div className="py-4 px-6 bg-indigo-950/80 rounded-2xl border-2 border-indigo-500/50 flex justify-center items-center min-h-[90px] relative overflow-hidden">
+                          {teams.map(team => {
+                            const isCurrentAnimated = team.id === animatingTeamId;
+                            if (!isCurrentAnimated && isSpinFinished && team.id !== stealingTeamId) return null;
+
+                            return (
+                              <div 
+                                key={team.id}
+                                className={`transition-all duration-150 flex items-center space-x-3 px-6 py-3 rounded-2xl border-2 ${
+                                  isCurrentAnimated 
+                                    ? `${team.color.bg} ${team.color.border} text-white scale-110 shadow-2xl ring-4 ring-amber-300 ${isSpinFinished ? 'animate-bounce' : 'scale-105'}` 
+                                    : 'opacity-0 absolute scale-75'
+                                }`}
+                              >
+                                <span className="text-2xl font-black">{team.name}</span>
+                                {isSpinFinished && <span className="text-xl">🔥</span>}
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        <p className="text-xs text-indigo-300 font-semibold italic">
+                          {isSpinFinished ? 'Bersiaplah untuk merebut poin!' : 'Sistem sedang memilih tim lain secara acak...'}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* ENHANCED STEAL PHASE: MANUAL PICK / SELECTION */}
+                    {stealPhase === 'selecting_team' && (
+                      <div className="bg-amber-500/10 border border-amber-500/40 p-4 rounded-2xl space-y-3">
+                        {stealMode === 'auto' && (
+                          <div className="text-center">
+                            <span className="inline-block bg-amber-400 text-indigo-950 text-xs font-black px-3 py-1 rounded-full shadow border border-amber-300 animate-pulse">
+                              ⚡ OTOMATIS SISTEM: {currentEffectiveMode === 'open' ? 'MODE OPEN STEAL!' : 'MODE MANUAL PICK!'}
+                            </span>
+                          </div>
+                        )}
+                        <div className="text-amber-300 font-bold text-center text-sm">
+                          {currentEffectiveMode === 'open' 
+                            ? '⚡ Open Steal: Pertanyaan Bebas Direbut! Pilih tim yang tercepat merebut:' 
+                            : '🎯 Mode Lempar: Pilih Tim yang Akan Merebut Pertanyaan!'}
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                          {teams.filter((_, idx) => idx !== activeTeamIdx).map(team => (
+                            <button
+                              key={team.id}
+                              onClick={() => {
+                                setStealingTeamId(team.id);
+                                setStealPhase('stealing_answer');
+                              }}
+                              className="bg-indigo-800 hover:bg-amber-400 hover:text-indigo-950 text-white border border-indigo-600 font-bold p-2.5 rounded-xl transition text-sm"
+                            >
+                              {team.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ENHANCED STEAL PHASE: STEAL ANSWER OUTCOME */}
+                    {stealPhase === 'stealing_answer' && (
+                      <div className="bg-purple-950/80 border border-purple-500/50 p-4 rounded-2xl text-center space-y-3 bounce-in">
+                        <div className="text-purple-300 font-extrabold text-base">
+                          ⚡ Kesempatan Merebut Pertanyaan oleh: <span className="text-amber-300 underline">{teams.find(t => t.id === stealingTeamId)?.name}</span>!
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 pt-2">
+                          <button 
+                            onClick={() => handleStealOutcome(true)}
+                            className="bg-emerald-500 hover:bg-emerald-400 text-indigo-950 font-black py-2.5 rounded-xl shadow transition"
+                          >
+                            Perebutan Benar (+Points)
+                          </button>
+                          <button 
+                            onClick={() => handleStealOutcome(false)}
+                            className="bg-rose-600 hover:bg-rose-500 text-white font-black py-2.5 rounded-xl shadow transition"
+                          >
+                            Perebutan Salah (-Penalti)
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                  </div>
+                )}
+
+              </div>
+            </div>
+          )}
+
+          {/* --- MODAL: HOST MANUAL SCORE ADJUSTMENT --- */}
+          {manualScoreModal && (
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+              <div className="bg-indigo-900 border border-indigo-700 rounded-3xl max-w-lg w-full p-6 shadow-2xl">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-xl font-extrabold text-amber-300">⚙️ Kontrol Host / Penyesuaian Skor</h3>
+                  <button onClick={() => setManualScoreModal(false)} className="text-indigo-300 hover:text-white">✕</button>
+                </div>
+
+                <div className="space-y-3">
+                  {teams.map(team => (
+                    <div key={team.id} className="flex justify-between items-center bg-indigo-950 p-3 rounded-xl border border-indigo-800">
+                      <span className="font-bold text-white">{team.name}: <span className="text-amber-300">{team.score} pts</span></span>
+                      <div className="flex items-center space-x-2">
+                        <button onClick={() => adjustScore(team.id, -10)} className="bg-rose-600 text-white px-2.5 py-1 rounded-lg font-bold text-xs hover:bg-rose-500">-10</button>
+                        <button onClick={() => adjustScore(team.id, 10)} className="bg-emerald-600 text-white px-2.5 py-1 rounded-lg font-bold text-xs hover:bg-emerald-500">+10</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <button 
+                  onClick={() => setManualScoreModal(false)}
+                  className="w-full bg-indigo-800 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl mt-5 transition"
+                >
+                  Selesai
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* --- MODAL: BANK SOAL / EDITOR --- */}
+          {editorModal && (
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+              <div className="bg-indigo-900 border border-indigo-700 rounded-3xl max-w-3xl w-full p-6 shadow-2xl max-h-[85vh] flex flex-col">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-xl font-extrabold text-amber-300">📚 Bank Soal Aktif ({questionBank.length} Soal)</h3>
+                  <button onClick={() => setEditorModal(false)} className="text-indigo-300 hover:text-white">✕</button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto space-y-3 pr-2">
+                  {questionBank.map((q, idx) => (
+                    <div key={q.id || idx} className="bg-indigo-950 p-3 rounded-xl border border-indigo-800 text-sm">
+                      <div className="flex justify-between font-bold text-amber-300 text-xs mb-1">
+                        <span>#Soal {idx + 1} ({q.type.toUpperCase()})</span>
+                        <span>{q.points} Pts</span>
+                      </div>
+                      <div className="text-white font-medium">{q.question}</div>
+                      <div className="text-xs text-emerald-400 mt-1 font-semibold">Kunci: {q.answer}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <button 
+                  onClick={() => setEditorModal(false)}
+                  className="w-full bg-amber-400 hover:bg-amber-300 text-indigo-950 font-bold py-2.5 rounded-xl mt-4 transition"
+                >
+                  Tutup Editor
+                </button>
+              </div>
+            </div>
+          )}
+
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
