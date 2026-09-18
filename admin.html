@@ -43,7 +43,10 @@
     <div id="questionCard" class="hidden bg-indigo-900 border-2 border-indigo-700 rounded-3xl p-6 space-y-5 shadow-2xl">
       <div class="flex justify-between items-center border-b border-indigo-800 pb-3">
         <span id="typeBadge" class="bg-amber-400/20 text-amber-300 border border-amber-400/40 text-xs font-black px-3 py-1 rounded-full"></span>
-        <span id="pointsBadge" class="text-lg font-black text-amber-300"></span>
+        <div class="flex items-center space-x-3">
+          <span id="timerBadge" class="hidden text-lg font-black px-3 py-1 rounded-full border"></span>
+          <span id="pointsBadge" class="text-lg font-black text-amber-300"></span>
+        </div>
       </div>
 
       <div id="turnInfo" class="text-sm font-semibold text-indigo-300"></div>
@@ -79,6 +82,7 @@
     const questionCard = document.getElementById('questionCard');
     const typeBadge = document.getElementById('typeBadge');
     const pointsBadge = document.getElementById('pointsBadge');
+    const timerBadge = document.getElementById('timerBadge');
     const turnInfo = document.getElementById('turnInfo');
     const questionText = document.getElementById('questionText');
     const optionsGrid = document.getElementById('optionsGrid');
@@ -133,6 +137,16 @@
       pointsBadge.textContent = `+${data.points || 10} Pts`;
       questionText.textContent = data.question;
 
+      if (state.timeLeft === null || state.timeLeft === undefined) {
+        timerBadge.classList.add('hidden');
+      } else {
+        timerBadge.classList.remove('hidden');
+        const urgent = state.timeLeft <= 5;
+        timerBadge.className = 'text-lg font-black px-3 py-1 rounded-full border ' +
+          (urgent ? 'text-rose-300 border-rose-500 bg-rose-500/10 animate-pulse' : 'text-indigo-200 border-indigo-600 bg-indigo-950/60');
+        timerBadge.textContent = state.timeLeft > 0 ? `⏱️ ${state.timeLeft}s` : '⏱️ Waktu Habis!';
+      }
+
       const activeTeam = state.teams && state.teams[state.activeTeamIdx];
       turnInfo.textContent = activeTeam ? `Giliran: ${activeTeam.name}` : '';
 
@@ -167,8 +181,10 @@
       statusText.textContent = 'Tidak didukung';
     } else {
       const channel = new BroadcastChannel('baamboozle_admin_sync');
+      let receivedAny = false;
       channel.onmessage = (e) => {
         if (e.data && e.data.type === 'state') {
+          receivedAny = true;
           setConnected(true);
           renderState(e.data);
         }
@@ -176,9 +192,13 @@
       channel.postMessage('request_state');
       refreshBtn.onclick = () => channel.postMessage('request_state');
 
-      // Keep asking in case the game tab loaded after this admin tab
-      const retry = setInterval(() => channel.postMessage('request_state'), 2000);
-      setTimeout(() => clearInterval(retry), 20000);
+      // Keep asking until the game tab answers at least once. This covers the
+      // case where this panel is opened before the game tab has finished
+      // loading (its channel doesn't exist yet, so the first ping is lost).
+      const retry = setInterval(() => {
+        if (receivedAny) { clearInterval(retry); return; }
+        channel.postMessage('request_state');
+      }, 2000);
     }
   </script>
 </body>

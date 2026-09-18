@@ -148,7 +148,7 @@
 
     // Power-Up / Trap definitions
     const POWER_UPS = [
-      { id: 'bomb', name: 'BOM MELEDAK!', desc: 'Tim kamu kehilangan 25 poin!', effect: (score) => Math.max(0, score - 25), color: 'from-red-600 to-rose-700', icon: '💣' },
+      { id: 'bomb', name: 'BOM MELEDAK!', desc: 'Tim kamu kehilangan 25 poin!', effect: (score) => score - 25, color: 'from-red-600 to-rose-700', icon: '💣' },
       { id: 'double', name: 'POIN GANDA!', desc: 'Dapatkan Bonus +30 Poin!', effect: (score) => score + 30, color: 'from-amber-500 to-yellow-600', icon: '⭐' },
       { id: 'swap', name: 'TUKAR SKOR!', desc: 'Tukar skor dengan tim di posisi teratas!', effect: null, isSwap: true, color: 'from-purple-600 to-indigo-700', icon: '🔄' },
       { id: 'thief', name: 'CURI POIN!', desc: 'Curi 20 poin dari tim pemimpin!', effect: null, isSteal20: true, color: 'from-emerald-600 to-teal-700', icon: '🥷' },
@@ -171,6 +171,10 @@
       const [stealMode, setStealMode] = useState('auto'); // 'auto', 'random', 'manual', 'open'
       const [currentEffectiveMode, setCurrentEffectiveMode] = useState('random');
       const [powerUpRate, setPowerUpRate] = useState(20); // percentage
+      const [questionTimerDuration, setQuestionTimerDuration] = useState(20); // seconds, 0 = off
+
+      // Live Countdown Timer State
+      const [timeLeft, setTimeLeft] = useState(null);
 
       // Team States
       const [teams, setTeams] = useState([
@@ -207,7 +211,7 @@
       useEffect(() => {
         liveStateRef.current = {
           gameState, teams, activeTeamIdx, selectedTile,
-          stealPhase, stealingTeamId, currentEffectiveMode
+          stealPhase, stealingTeamId, currentEffectiveMode, timeLeft
         };
       });
 
@@ -227,10 +231,10 @@
         if (adminChannelRef.current) {
           adminChannelRef.current.postMessage({
             type: 'state', gameState, teams, activeTeamIdx, selectedTile,
-            stealPhase, stealingTeamId, currentEffectiveMode
+            stealPhase, stealingTeamId, currentEffectiveMode, timeLeft
           });
         }
-      }, [gameState, teams, activeTeamIdx, selectedTile, stealPhase, stealingTeamId, currentEffectiveMode]);
+      }, [gameState, teams, activeTeamIdx, selectedTile, stealPhase, stealingTeamId, currentEffectiveMode, timeLeft]);
 
       // Initialize Lucide Icons
       useEffect(() => {
@@ -238,6 +242,15 @@
           window.lucide.createIcons();
         }
       });
+
+      // Live Countdown Timer: ticks down whenever a question (not power-up) is
+      // on screen and stops once it hits 0. Host still decides correct/wrong
+      // manually — this is a pacing aid, not an auto-judge.
+      useEffect(() => {
+        if (timeLeft === null || timeLeft <= 0) return;
+        const t = setTimeout(() => setTimeLeft(prev => (prev === null ? null : prev - 1)), 1000);
+        return () => clearTimeout(t);
+      }, [timeLeft]);
 
       // --- GAME SETUP & INITIALIZATION ---
       const handleStartGame = () => {
@@ -292,6 +305,7 @@
         setAnimatingTeamId(null);
         setIsSpinFinished(false);
         setCurrentEffectiveMode('random');
+        setTimeLeft(null);
 
         // Check game over
         const remaining = tiles.filter(t => !t.isOpened).length;
@@ -314,6 +328,9 @@
         // If it's a Power Up / Trap, execute immediately
         if (tile.isPowerUp) {
           executePowerUp(tile.data);
+          setTimeLeft(null);
+        } else {
+          setTimeLeft(questionTimerDuration > 0 ? questionTimerDuration : null);
         }
       };
 
@@ -389,6 +406,7 @@
             // Transition to answer steal step after brief reveal
             setTimeout(() => {
               setStealPhase('stealing_answer');
+              setTimeLeft(questionTimerDuration > 0 ? questionTimerDuration : null);
             }, 1300);
           }
         };
@@ -400,12 +418,14 @@
       const handleWrongAnswer = () => {
         const points = selectedTile.data.points || 10;
 
-        setTeams(prev => prev.map((t, idx) => 
-          idx === activeTeamIdx ? { ...t, score: Math.max(0, t.score - points) } : t
+        setTeams(prev => prev.map((t, idx) =>
+          idx === activeTeamIdx ? { ...t, score: t.score - points } : t
         ));
 
-        if (teams.length <= 1) {
-          // No other teams to steal
+        // No stealing when: only 1 team, question type is True/False (too easy to
+        // guess 50/50 without answering), or the answer key has already been
+        // revealed on screen (would no longer be a fair steal).
+        if (teams.length <= 1 || selectedTile.data.type === 'tf' || revealedAnswer) {
           nextTurn();
           return;
         }
@@ -438,7 +458,7 @@
             if (idx === targetTeamIdx) {
               return {
                 ...t,
-                score: isStealCorrect ? t.score + points : Math.max(0, t.score - Math.floor(points / 2))
+                score: isStealCorrect ? t.score + points : t.score - Math.floor(points / 2)
               };
             }
             return t;
@@ -469,7 +489,7 @@
       };
 
       const adjustScore = (teamId, amount) => {
-        setTeams(teams.map(t => t.id === teamId ? { ...t, score: Math.max(0, t.score + amount) } : t));
+        setTeams(teams.map(t => t.id === teamId ? { ...t, score: t.score + amount } : t));
       };
 
       return (
@@ -531,7 +551,7 @@
 
                 <div className="space-y-6">
                   {/* Grid Size & Special Tiles */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="bg-indigo-950/50 p-4 rounded-2xl border border-indigo-800">
                       <label className="block text-sm font-medium text-indigo-200 mb-2">Jumlah Kartu Papan:</label>
                       <select 
@@ -559,6 +579,23 @@
                         <option value={10}>10% (Sedikit)</option>
                         <option value={20}>20% (Sedang)</option>
                         <option value={30}>30% (Ramai)</option>
+                      </select>
+                    </div>
+
+                    <div className="bg-indigo-950/50 p-4 rounded-2xl border border-indigo-800">
+                      <label className="block text-sm font-medium text-indigo-200 mb-2">⏱️ Waktu per Soal:</label>
+                      <select
+                        value={questionTimerDuration}
+                        onChange={(e) => setQuestionTimerDuration(Number(e.target.value))}
+                        className="w-full bg-indigo-900 border border-indigo-700 text-white rounded-xl p-2.5 font-bold focus:ring-2 focus:ring-amber-400"
+                      >
+                        <option value={0}>Tanpa Timer</option>
+                        <option value={10}>10 Detik</option>
+                        <option value={15}>15 Detik</option>
+                        <option value={20}>20 Detik</option>
+                        <option value={30}>30 Detik</option>
+                        <option value={45}>45 Detik</option>
+                        <option value={60}>60 Detik</option>
                       </select>
                     </div>
                   </div>
@@ -787,9 +824,20 @@
                       <span className="bg-amber-400/20 text-amber-300 border border-amber-400/40 text-xs font-black px-3 py-1 rounded-full">
                         {selectedTile.data.type === 'mcq' ? 'Pilihan Ganda' : selectedTile.data.type === 'tf' ? 'True / False' : 'Isian Singkat'}
                       </span>
-                      <span className="text-lg font-black text-amber-300">
-                        +{selectedTile.data.points || 10} Pts
-                      </span>
+                      <div className="flex items-center space-x-3">
+                        {timeLeft !== null && (
+                          <span className={`text-lg font-black px-3 py-1 rounded-full border ${
+                            timeLeft <= 5
+                              ? 'text-rose-300 border-rose-500 bg-rose-500/10 animate-pulse'
+                              : 'text-indigo-200 border-indigo-600 bg-indigo-950/60'
+                          }`}>
+                            ⏱️ {timeLeft > 0 ? `${timeLeft}s` : 'Waktu Habis!'}
+                          </span>
+                        )}
+                        <span className="text-lg font-black text-amber-300">
+                          +{selectedTile.data.points || 10} Pts
+                        </span>
+                      </div>
                     </div>
 
                     {/* Question Text */}
@@ -911,6 +959,7 @@
                               onClick={() => {
                                 setStealingTeamId(team.id);
                                 setStealPhase('stealing_answer');
+                                setTimeLeft(questionTimerDuration > 0 ? questionTimerDuration : null);
                               }}
                               className="bg-indigo-800 hover:bg-amber-400 hover:text-indigo-950 text-white border border-indigo-600 font-bold p-2.5 rounded-xl transition text-sm"
                             >
