@@ -36,9 +36,14 @@
     }
     .card-front, .card-back {
       backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
     }
     .card-back {
       transform: rotateY(180deg);
+      /* Never intercept clicks: on some displays/browsers the 3D flip isn't
+         rendered perfectly and this face can visually sit on top of
+         card-front, silently swallowing taps meant to open the question. */
+      pointer-events: none;
     }
     .bounce-in {
       animation: bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
